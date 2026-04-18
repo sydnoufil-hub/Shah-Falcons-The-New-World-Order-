@@ -13,27 +13,23 @@ export async function setSetting(key, value) {
   const now = new Date().toISOString();
 
   try {
-    // Check if key exists
-    const existing = await db.getFirstAsync(
-      `SELECT key FROM settings WHERE key = ?`,
-      [key]
-    );
-
-    if (existing) {
-      // Update
-      await db.runAsync(
-        `UPDATE settings SET value = ?, updated_at = ? WHERE key = ?`,
-        [String(value), now, key]
-      );
-    } else {
-      // Insert
-      await db.runAsync(
-        `INSERT INTO settings (key, value, created_at, updated_at)
-         VALUES (?, ?, ?, ?)`,
-        [key, String(value), now, now]
-      );
+    console.log(`[setSetting] Saving key: ${key}, value: ${value}`);
+    
+    // Delete if exists, then insert (simpler approach to avoid conflicts)
+    try {
+      await db.runAsync(`DELETE FROM settings WHERE key = ?`, [key]);
+    } catch (e) {
+      // Ignore delete errors
     }
-
+    
+    // Insert the new value
+    await db.runAsync(
+      `INSERT INTO settings (key, value, created_at, updated_at)
+       VALUES (?, ?, ?, ?)`,
+      [String(key), String(value), now, now]
+    );
+    
+    console.log(`[setSetting] Saved key: ${key}`);
     return { key, value };
   } catch (error) {
     console.error('Error setting setting:', error);
@@ -53,7 +49,9 @@ export async function getSetting(key, defaultValue = null) {
       [key]
     );
 
-    return result ? result.value : defaultValue;
+    const value = result ? result.value : defaultValue;
+    console.log(`[getSetting] key: ${key}, result: ${value}`);
+    return value;
   } catch (error) {
     console.error('Error getting setting:', error);
     throw error;
@@ -104,7 +102,7 @@ export async function setOllamaIP(ip) {
 }
 
 export async function getOllamaIP() {
-  return getSetting('ollama_ip', 'http://192.168.1.5:11434');
+  return getSetting('ollama_ip', 'http://192.168.0.142:11434');
 }
 
 /**

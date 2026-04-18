@@ -174,11 +174,15 @@ export function useOllamaConnection() {
   }, [connectionStatus, latency, error]);
 
   /**
-   * Auto-test on mount
+   * Auto-test on mount (non-blocking)
    */
   useEffect(() => {
-    testConnection();
-  }, []);
+    // Fire off connection test WITHOUT waiting for it
+    // This prevents the UI from freezing
+    testConnection().catch(err => {
+      console.error('Background connection test failed:', err.message);
+    });
+  }, [testConnection]);
 
   /**
    * Cleanup monitoring on unmount

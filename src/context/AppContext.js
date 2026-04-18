@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { getBusinessProfile, updateBusinessProfile } from '../database/repositories/businessProfileRepository';
-import { getOllamaIP, setOllamaIP, getTheme, setTheme, getLanguage, setLanguage, getCurrency } from '../database/repositories/settingsRepository';
+import { getTheme, setTheme, getLanguage, setLanguage, getCurrency } from '../database/repositories/settingsRepository';
 
 /**
  * App Context
@@ -19,14 +19,10 @@ export function AppContextProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(true);
 
   // Settings State
-  const [ollamaIP, setOllamaIPState] = useState('http://192.168.1.5:11434');
   const [theme, setThemeState] = useState('light');
   const [language, setLanguageState] = useState('en');
   const [currency, setCurrencyState] = useState('PKR');
   const [settingsLoading, setSettingsLoading] = useState(true);
-
-  // Connection Status
-  const [isOllamaConnected, setIsOllamaConnected] = useState(false);
 
   /**
    * Load business profile on app start
@@ -73,14 +69,13 @@ export function AppContextProvider({ children }) {
     try {
       setSettingsLoading(true);
 
-      const [ip, themeVal, langVal, currencyVal] = await Promise.all([
-        getOllamaIP(),
+      const [themeVal, langVal, currencyVal] = await Promise.all([
         getTheme(),
         getLanguage(),
         getCurrency()
       ]);
 
-      setOllamaIPState(ip || 'http://192.168.1.5:11434');
+      console.log('[AppContext] Loaded settings');
       setThemeState(themeVal || 'light');
       setLanguageState(langVal || 'en');
       setCurrencyState(currencyVal || 'PKR');
@@ -111,19 +106,6 @@ export function AppContextProvider({ children }) {
   }, []);
 
   /**
-   * Update Ollama IP
-   */
-  const updateOllamaIP = useCallback(async (newIP) => {
-    try {
-      await setOllamaIP(newIP);
-      setOllamaIPState(newIP);
-    } catch (error) {
-      console.error('Error updating Ollama IP:', error);
-      throw error;
-    }
-  }, []);
-
-  /**
    * Update theme
    */
   const updateTheme = useCallback(async (newTheme) => {
@@ -149,41 +131,26 @@ export function AppContextProvider({ children }) {
     }
   }, []);
 
-  /**
-   * Update Ollama connection status
-   */
-  const updateOllamaConnected = useCallback((connected) => {
-    setIsOllamaConnected(connected);
-  }, []);
-
-  const value = {
-    // Business Profile
-    businessProfile,
-    isSetupComplete,
-    profileLoading,
-    updateProfile,
-
-    // Settings
-    ollamaIP,
-    theme,
-    language,
-    currency,
-    settingsLoading,
-    updateOllamaIP,
-    updateTheme,
-    updateLanguage,
-
-    // Connection
-    isOllamaConnected,
-    updateOllamaConnected,
-
-    // Utilities
-    loadBusinessProfile,
-    loadSettings
-  };
-
   return (
-    <AppContext.Provider value={value}>
+    <AppContext.Provider
+      value={{
+        // Profile
+        businessProfile,
+        isSetupComplete,
+        profileLoading,
+        updateProfile,
+        
+        // Settings
+        theme,
+        language,
+        currency,
+        settingsLoading,
+        setThemeState: updateTheme,
+        
+        // Connection - simplified
+        aiEnabled: true // Gemini is always available
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -198,8 +165,6 @@ export function useAppContext() {
   if (!context) {
     throw new Error('useAppContext must be used within AppContextProvider');
   }
-
-  return context;
 
   return context;
 }

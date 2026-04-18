@@ -4,7 +4,17 @@
  */
 
 import * as Speech from 'expo-speech';
-import * as SpeechRecognition from 'expo-speech-recognition';
+
+// Speech recognition is not available in Expo Go
+// It requires native modules and a development build
+let SpeechRecognition = null;
+try {
+  SpeechRecognition = require('expo-speech-recognition');
+} catch (e) {
+  console.warn('expo-speech-recognition requires a development build. To use voice input:');
+  console.warn('  iOS: npx expo run:ios');
+  console.warn('  Android: npx expo run:android');
+}
 
 const DEFAULT_LANGUAGE = 'en-US';
 const VOICE_RATE = 1.0;
@@ -16,10 +26,14 @@ const VOICE_PITCH = 1.0;
  */
 export async function isSpeechRecognitionAvailable() {
   try {
+    if (!SpeechRecognition) {
+      // Silently return false - this is expected in Expo Go
+      return false;
+    }
     const available = await SpeechRecognition.getAvailableLanguages();
     return available && available.length > 0;
   } catch (error) {
-    console.warn('Speech recognition not available:', error.message);
+    // Silently return false - this is expected when module not available
     return false;
   }
 }
@@ -48,6 +62,10 @@ export async function isTextToSpeechAvailable() {
  * @returns {Promise<string>} - Transcribed text
  */
 export async function startVoiceInput(options = {}) {
+  if (!SpeechRecognition) {
+    throw new Error('Voice input is not available in this environment. Please use manual text input or build a development build.');
+  }
+
   const {
     language = DEFAULT_LANGUAGE,
     onPartialResult = null,
@@ -116,7 +134,9 @@ export async function startVoiceInput(options = {}) {
  */
 export function stopVoiceInput() {
   try {
-    SpeechRecognition.stop();
+    if (SpeechRecognition) {
+      SpeechRecognition.stop();
+    }
   } catch (error) {
     console.warn('Error stopping voice input:', error.message);
   }
@@ -127,7 +147,9 @@ export function stopVoiceInput() {
  */
 export function abortVoiceInput() {
   try {
-    SpeechRecognition.abort();
+    if (SpeechRecognition) {
+      SpeechRecognition.abort();
+    }
   } catch (error) {
     console.warn('Error aborting voice input:', error.message);
   }
@@ -210,6 +232,9 @@ export async function getAvailableVoices() {
  */
 export async function getAvailableLanguages() {
   try {
+    if (!SpeechRecognition) {
+      return [DEFAULT_LANGUAGE];
+    }
     return await SpeechRecognition.getAvailableLanguages();
   } catch (error) {
     console.error('Error getting available languages:', error);
@@ -224,6 +249,9 @@ export async function getAvailableLanguages() {
  */
 export async function hasMicrophonePermission() {
   try {
+    if (!SpeechRecognition) {
+      return false;
+    }
     const result = await SpeechRecognition.getPermissionsAsync();
     return result.granted;
   } catch (error) {
@@ -239,6 +267,9 @@ export async function hasMicrophonePermission() {
  */
 export async function requestMicrophonePermission() {
   try {
+    if (!SpeechRecognition) {
+      return false;
+    }
     const result = await SpeechRecognition.requestPermissionsAsync();
     return result.granted;
   } catch (error) {

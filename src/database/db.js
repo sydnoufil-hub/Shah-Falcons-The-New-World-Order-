@@ -1,24 +1,44 @@
 import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'cashflow.db';
-let database;
+let database = null;
+let initPromise = null;
 
 /**
  * Initialize the database and create tables if they don't exist
  */
 export async function initializeDatabase() {
-  try {
-    database = await SQLite.openDatabaseAsync(DB_NAME);
-    
-    // Create tables
-    await createTables();
-    
-    console.log('Database initialized successfully');
-    return database;
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    throw error;
+  // Return existing initialization if already in progress
+  if (initPromise) {
+    return initPromise;
   }
+
+  initPromise = (async () => {
+    try {
+      console.log('[DB] Opening database:', DB_NAME);
+      
+      // Open database with new API
+      database = await SQLite.openDatabaseAsync(DB_NAME);
+      console.log('[DB] Database opened successfully');
+      
+      // Enable WAL mode for better concurrency
+      await database.execAsync('PRAGMA journal_mode = WAL;');
+      
+      // Create tables
+      await createTables();
+      
+      console.log('[DB] All tables created successfully');
+      console.log('[DB] Database initialized successfully');
+      return database;
+    } catch (error) {
+      console.error('[DB] Error initializing database:', error);
+      database = null;
+      initPromise = null;
+      throw error;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
@@ -35,6 +55,10 @@ export function getDatabase() {
  * Create all tables
  */
 async function createTables() {
+  if (!database) {
+    throw new Error('Database not available');
+  }
+
   try {
     // Business Profile Table
     await database.execAsync(`
@@ -100,9 +124,9 @@ async function createTables() {
       CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat_messages(timestamp);
     `);
 
-    console.log('All tables created successfully');
+    console.log('[DB] Tables created successfully');
   } catch (error) {
-    console.error('Error creating tables:', error);
+    console.error('[DB] Error creating tables:', error);
     throw error;
   }
 }
@@ -134,9 +158,9 @@ export async function resetDatabase() {
     `);
 
     await createTables();
-    console.log('Database reset successfully');
+    console.log('[DB] Database reset successfully');
   } catch (error) {
-    console.error('Error resetting database:', error);
+    console.error('[DB] Error resetting database:', error);
     throw error;
   }
 }

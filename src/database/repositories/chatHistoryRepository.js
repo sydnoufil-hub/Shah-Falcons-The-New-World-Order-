@@ -1,5 +1,16 @@
 import { getDatabase } from '../db';
-import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Generate a UUID v4-compatible ID without requiring crypto APIs
+ * Works reliably in React Native
+ */
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 /**
  * Chat History Repository
@@ -18,7 +29,7 @@ export async function addChatMessage(messageData) {
     extractedData = null
   } = messageData;
 
-  const id = uuidv4();
+  const id = generateUUID();
   const timestamp = new Date().toISOString();
 
   try {

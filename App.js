@@ -1,17 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import AppNavigator from './src/Navigator/AppNavigator';
 import { initializeDatabase } from './src/database/db';
 import { AppContextProvider } from './src/context/AppContext';
-
-function AppContent() {
-  return (
-    <View style={styles.container}>
-      <Text>Welcome to CashFlow!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
 
 export default function App() {
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -20,10 +13,12 @@ export default function App() {
   useEffect(() => {
     const initDB = async () => {
       try {
+        console.log('[App] Starting database initialization...');
         await initializeDatabase();
+        console.log('[App] Database initialization complete');
         setDbInitialized(true);
       } catch (error) {
-        console.error('Failed to initialize database:', error);
+        console.error('[App] Failed to initialize database:', error);
         setDbError(error.message);
       }
     };
@@ -35,11 +30,14 @@ export default function App() {
     return (
       <View style={styles.container}>
         {dbError ? (
-          <Text style={{ color: 'red' }}>Database Error: {dbError}</Text>
+          <>
+            <Text style={{ color: 'red', fontSize: 16, marginBottom: 10 }}>Database Error:</Text>
+            <Text style={{ color: 'red', fontSize: 12 }}>{dbError}</Text>
+          </>
         ) : (
           <>
             <ActivityIndicator size="large" color="#1E3A5F" />
-            <Text>Initializing CashFlow...</Text>
+            <Text style={{ marginTop: 10 }}>Initializing CashFlow...</Text>
           </>
         )}
       </View>
@@ -48,7 +46,10 @@ export default function App() {
 
   return (
     <AppContextProvider>
-      <AppContent />
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+      <StatusBar style="auto" />
     </AppContextProvider>
   );
 }

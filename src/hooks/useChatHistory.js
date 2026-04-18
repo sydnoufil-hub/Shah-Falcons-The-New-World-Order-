@@ -38,6 +38,16 @@ export function useChatHistory() {
   }, []);
 
   /**
+   * Load messages on mount (non-blocking)
+   */
+  useEffect(() => {
+    // Load chat history when component mounts
+    loadMessages().catch(err => {
+      console.error('Failed to load chat history:', err.message);
+    });
+  }, [loadMessages]);
+
+  /**
    * Add a new message to chat
    */
   const addMessage = useCallback(async (role, content, extractedData = null) => {
