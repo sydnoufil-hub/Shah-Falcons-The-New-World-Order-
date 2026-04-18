@@ -1,0 +1,28 @@
+{
+  "name": "cico-2",
+  "version": "1.0.0",
+  "description": "React Native project",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@react-native-voice/voice": "^3.2.4",
+    "expo": "^50.0.0",
+    "expo-speech": "^55.0.13",
+    "expo-speech-recognition": "^3.1.2",
+    "expo-sqlite": "^55.0.15",
+    "react": "^18.2.0",
+    "react-native": "^0.73.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0"
+  }
+}
