@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTransactions } from '../../hooks/useTransactions';
 import { formatPKR } from '../../utils/currencyFormatter';
 import { COLORS } from '../../constants/constants';
@@ -7,8 +8,16 @@ import { COLORS } from '../../constants/constants';
 const FILTER_TYPES = ['all', 'sale', 'expense', 'receivable', 'payable'];
 
 export default function TransactionsScreen() {
-  const { transactions, loading } = useTransactions();
+  const { transactions, loading, error, loadTransactions } = useTransactions();
   const [activeFilter, setActiveFilter] = useState('all');
+
+  // Refresh transaction data whenever this screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[History] 👁️ Screen focused, refreshing data...');
+      loadTransactions();
+    }, [loadTransactions])
+  );
 
   const filteredData = activeFilter === 'all' 
     ? transactions 
@@ -26,6 +35,23 @@ export default function TransactionsScreen() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: 'red', marginBottom: 10 }}>Error loading transactions</Text>
+        <Text style={{ color: '#999', fontSize: 12 }}>{error}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>History</Text>
@@ -42,12 +68,19 @@ export default function TransactionsScreen() {
           </TouchableOpacity>
         ))}
       </View>
-      <FlatList
-        data={filteredData}
-        keyExtractor={item => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      />
+      {filteredData.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No transactions yet</Text>
+          <Text style={{ fontSize: 12, color: '#999', marginTop: 5 }}>Start by adding a transaction</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredData}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+      )}
     </View>
   );
 }
@@ -63,5 +96,7 @@ const styles = StyleSheet.create({
   txItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, backgroundColor: '#FFF', borderRadius: 12, marginBottom: 10, elevation: 1 },
   txCategory: { fontWeight: 'bold', color: '#2C3E50' },
   txDate: { fontSize: 12, color: '#999' },
-  txAmount: { fontWeight: 'bold' }
+  txAmount: { fontWeight: 'bold' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#999', textAlign: 'center' }
 });

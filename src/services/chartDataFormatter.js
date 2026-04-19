@@ -7,13 +7,19 @@ import { getTransactionsByLastDays } from '../database/repositories/transactionR
 import { getLastDaysRange } from '../utils/dateUtils';
 
 /**
- * Get 7-day cash flow chart data
- * Returns: { labels, salesData, expenseData, netData }
+ * Get 7-day cumulative cash position chart data
+ * Shows running cash balance over the last 7 days
+ * Returns: { labels, cumulativeData, datasets }
  */
 export async function get7DayCashFlowChartData() {
   try {
     const transactions = await getTransactionsByLastDays(7);
     const { startDate, endDate } = getLastDaysRange(7);
+
+    // Get business profile for opening balance
+    const { getBusinessProfile } = require('../database/repositories/businessProfileRepository');
+    const profile = await getBusinessProfile();
+    const openingBalance = profile?.openingBalance || 0;
 
     // Group by date
     const dataByDate = {};
@@ -31,60 +37,54 @@ export async function get7DayCashFlowChartData() {
       };
     }
 
-    // Aggregate transactions
+    // Aggregate transactions (only completed sales/expenses)
     transactions.forEach(tx => {
       if (dataByDate[tx.date]) {
-        if (tx.type === 'sale') {
+        if (tx.type === 'sale' && tx.status === 'completed') {
           dataByDate[tx.date].sales += tx.amount;
-        } else if (tx.type === 'expense') {
+        } else if (tx.type === 'expense' && tx.status === 'completed') {
           dataByDate[tx.date].expenses += tx.amount;
         }
       }
     });
 
-    // Calculate net for each day
-    Object.keys(dataByDate).forEach(date => {
-      dataByDate[date].net = dataByDate[date].sales - dataByDate[date].expenses;
+    // Calculate cumulative cash position for each day
+    const sortedDates = Object.keys(dataByDate).sort();
+    let runningBalance = openingBalance;
+    
+    const cumulativeData = sortedDates.map(date => {
+      const dayData = dataByDate[date];
+      runningBalance = runningBalance + dayData.sales - dayData.expenses;
+      return runningBalance;
     });
 
-    const sortedDates = Object.keys(dataByDate).sort();
     const labels = sortedDates.map(d => formatDateForChart(d));
-    const salesData = sortedDates.map(d => dataByDate[d].sales);
-    const expenseData = sortedDates.map(d => dataByDate[d].expenses);
-    const netData = sortedDates.map(d => dataByDate[d].net);
 
     return {
       labels,
+      cumulativeData,
       datasets: [
         {
-          label: 'Sales',
-          data: salesData,
-          borderColor: '#27AE60',
-          backgroundColor: 'rgba(39, 174, 96, 0.1)',
-          tension: 0.4
-        },
-        {
-          label: 'Expenses',
-          data: expenseData,
-          borderColor: '#E74C3C',
-          backgroundColor: 'rgba(231, 76, 60, 0.1)',
-          tension: 0.4
-        },
-        {
-          label: 'Net',
-          data: netData,
+          label: 'Cash Position',
+          data: cumulativeData,
           borderColor: '#1E3A5F',
-          backgroundColor: 'rgba(30, 58, 95, 0.1)',
-          tension: 0.4
+          backgroundColor: 'rgba(39, 174, 96, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#1E3A5F',
+          pointBorderColor: '#FFF',
+          pointRadius: 5
         }
       ],
-      raw: dataByDate
+      raw: dataByDate,
+      openingBalance
     };
 
   } catch (error) {
     console.error('Error formatting 7-day chart data:', error);
     return {
       labels: [],
+      cumulativeData: [],
       datasets: [],
       raw: {}
     };
@@ -158,23 +158,29 @@ export async function getCategoryBreakdown(type = 'expense', limit = null) {
  */
 function formatDateForChart(dateISO) {
   try {
-    const date = new Date(dateISO);
     const today = new Date();
+    const todayISO = today.toISOString().split('T')[0];
     
     // If today, show "Today"
-    if (dateISO === today.toISOString().split('T')[0]) {
+    if (dateISO === todayISO) {
       return 'Today';
     }
 
     // If yesterday, show "Yesterday"
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (dateISO === yesterday.toISOString().split('T')[0]) {
-      return 'Yesterday';
+    const yesterdayISO = yesterday.toISOString().split('T')[0];
+    if (dateISO === yesterdayISO) {
+      return 'Yest';
     }
 
-    // Otherwise show day of week + date
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    // Parse date without timezone issues
+    const [year, month, day] = dateISO.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    // Get day of week - just 3 letters
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return dayNames[date.getDay()];
   } catch (e) {
     return dateISO;
   }

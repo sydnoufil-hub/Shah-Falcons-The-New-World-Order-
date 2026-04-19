@@ -58,12 +58,21 @@ export function useVoiceInput() {
         getAvailableLanguages()
       ]);
 
-      setVoiceInputAvailable(voiceAvailable.status === 'fulfilled' ? voiceAvailable.value : false);
-      setTextToSpeechAvailable(ttsAvailable.status === 'fulfilled' ? ttsAvailable.value : false);
+      const voiceReady = voiceAvailable.status === 'fulfilled' ? voiceAvailable.value : false;
+      const ttsReady = ttsAvailable.status === 'fulfilled' ? ttsAvailable.value : false;
+      
+      console.log('[Voice] ✅ Availability check:', { voiceReady, ttsReady });
+      
+      setVoiceInputAvailable(voiceReady);
+      setTextToSpeechAvailable(ttsReady);
       setMicrophonePermission(hasPermission.status === 'fulfilled' ? hasPermission.value : false);
       setAvailableLanguages(languages.status === 'fulfilled' ? languages.value : ['en-US']);
+      
+      if (!voiceReady) {
+        console.warn('[Voice] ⚠️ Speech recognition not available - requires development build!');
+      }
     } catch (err) {
-      console.error('Error checking voice availability:', err);
+      console.error('[Voice] ❌ Error checking availability:', err);
     }
   }, []);
 
@@ -90,17 +99,24 @@ export function useVoiceInput() {
       setTranscribedText('');
       setPartialText('');
 
+      console.log('[Voice] 🎤 Starting voice input...', { voiceInputAvailable, microphonePermission });
+
       // Check permission first
       if (!microphonePermission) {
+        console.log('[Voice] Requesting mic permission...');
         const granted = await requestPermission();
         if (!granted) {
-          setError('Microphone permission required');
+          const err = 'Microphone permission required';
+          console.error('[Voice] ❌', err);
+          setError(err);
           return;
         }
       }
 
       if (!voiceInputAvailable) {
-        setError('Voice input not available on this device');
+        const err = 'Voice input not available - requires development build (npx expo run:android)';
+        console.error('[Voice] ❌', err);
+        setError(err);
         return;
       }
 
@@ -109,20 +125,25 @@ export function useVoiceInput() {
       const result = await startVoiceInput({
         language: selectedLanguage,
         onPartialResult: (partial) => {
+          console.log('[Voice] 📝 Partial:', partial);
+
           setPartialText(partial);
         },
         onFinalResult: (final) => {
+          console.log('[Voice] ✅ Final result:', final);
           setTranscribedText(final);
           setPartialText('');
         }
       });
 
+      console.log('[Voice] 🎉 Voice input complete:', result);
       setIsListening(false);
       return result;
     } catch (err) {
       setIsListening(false);
-      setError(err.message);
-      console.error('Error starting voice input:', err);
+      const errorMsg = err.message || 'Unknown voice input error';
+      console.error('[Voice] ❌ Error:', errorMsg);
+      setError(errorMsg);
     }
   }, [voiceInputAvailable, microphonePermission, selectedLanguage, requestPermission]);
 

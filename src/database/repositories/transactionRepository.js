@@ -141,7 +141,7 @@ export async function getTransactionsByStatus(status) {
 }
 
 /**
- * Get receivables (unpaid/pending receivables)
+ * Get receivables (ALL receivables, not just pending)
  */
 export async function getReceivables() {
   const db = getDatabase();
@@ -149,7 +149,7 @@ export async function getReceivables() {
   try {
     const results = await db.getAllAsync(
       `SELECT * FROM transactions 
-       WHERE type = 'receivable' AND status IN ('pending', 'overdue')
+       WHERE type = 'receivable'
        ORDER BY due_date ASC`,
       []
     );
@@ -161,7 +161,7 @@ export async function getReceivables() {
 }
 
 /**
- * Get payables (unpaid/pending payables)
+ * Get payables (ALL payables, not just pending)
  */
 export async function getPayables() {
   const db = getDatabase();
@@ -169,7 +169,7 @@ export async function getPayables() {
   try {
     const results = await db.getAllAsync(
       `SELECT * FROM transactions 
-       WHERE type = 'payable' AND status IN ('pending', 'overdue')
+       WHERE type = 'payable'
        ORDER BY due_date ASC`,
       []
     );

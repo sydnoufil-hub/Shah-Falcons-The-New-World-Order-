@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTransactions } from '../hooks/useTransactions';
 import { formatPKR } from '../utils/currencyFormatter';
 import { COLORS } from '../constants/constants';
@@ -9,13 +10,43 @@ import { MetricCard } from '../Components/MetricCard';
 const screenWidth = Dimensions.get('window').width;
 
 export default function DashboardScreen() {
-  const { financialPosition, chartData } = useTransactions();
+  const { financialPosition, chartData, loading, error, loadTransactions } = useTransactions();
+
+  // Refresh dashboard data whenever this screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[Dashboard] 👁️ Screen focused, refreshing data...');
+      loadTransactions();
+    }, [loadTransactions])
+  );
 
   // Fallback data if chartData isn't loaded yet
   const defaultChartData = {
     labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }]
+    cumulativeData: [0, 0, 0, 0, 0, 0, 0]
   };
+
+  const chart = chartData || defaultChartData;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: 10, color: COLORS.primary }}>Loading data...</Text>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: 'red', fontSize: 16, marginBottom: 10 }}>Error Loading Data</Text>
+        <Text style={{ color: 'red', fontSize: 12 }}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -34,31 +65,36 @@ export default function DashboardScreen() {
 
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>7-Day Cash Flow</Text>
-        <LineChart
-          data={{
-            labels: chartData?.labels || defaultChartData.labels,
-            datasets: [
-              { data: chartData?.netData || defaultChartData.datasets[0].data, color: () => COLORS.secondary },
-              { data: chartData?.expenseData || defaultChartData.datasets[0].data, color: () => COLORS.danger }
-            ]
-          }}
-          width={screenWidth - 40}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#FFF',
-            backgroundGradientFrom: '#FFF',
-            backgroundGradientTo: '#FFF',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: { borderRadius: 16 },
-            propsForDots: { r: "4", strokeWidth: "2", stroke: COLORS.primary }
-          }}
-          bezier
-          style={{ marginVertical: 8, borderRadius: 16 }}
-        />
+        {chart.labels && chart.labels.length > 0 ? (
+          <LineChart
+            data={{
+              labels: chart.labels,
+              datasets: [
+                { data: chart.cumulativeData || defaultChartData.cumulativeData, color: () => COLORS.primary }
+              ]
+            }}
+            width={screenWidth - 40}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#FFF',
+              backgroundGradientFrom: '#FFF',
+              backgroundGradientTo: '#FFF',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              style: { borderRadius: 16 },
+              propsForDots: { r: "4", strokeWidth: "2", stroke: COLORS.primary }
+            }}
+            bezier
+            style={{ marginVertical: 8, borderRadius: 16 }}
+          />
+        ) : (
+          <View style={styles.emptyChart}>
+            <Text style={{ color: '#999', fontSize: 14 }}>No transaction data yet</Text>
+          </View>
+        )}
         <View style={styles.legend}>
-          <Text style={{color: COLORS.secondary, fontSize: 12}}>● Net Income</Text>
+          <Text style={{color: COLORS.primary, fontSize: 12}}>● Cumulative Cash Position</Text>
           <Text style={{color: COLORS.danger, fontSize: 12, marginLeft: 15}}>● Expenses</Text>
         </View>
       </View>
@@ -118,5 +154,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 10
+  },
+  emptyChart: {
+    height: 220,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0'
   }
 });

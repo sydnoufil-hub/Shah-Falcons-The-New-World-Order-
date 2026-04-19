@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, FlatList, TextInput, TouchableOpacity, Text, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useChatHistory, useVoiceInput } from '../../hooks';
+import { useChatHistory, useVoiceInput, useTransactions } from '../../hooks';
 import { chatWithGemini } from '../../services/geminiService';
 import { extractAndSaveTransactions } from '../../services/transactionExtractor';
 import { COLORS } from '../../constants/constants';
@@ -10,7 +10,8 @@ import { COLORS } from '../../constants/constants';
 export default function ChatScreen() {
   const navigation = useNavigation();
   const { messages, addUserMessage, addAssistantMessage } = useChatHistory();
-  const { isListening, transcribedText, partialText, startListening, stopListening } = useVoiceInput();
+  const { isListening, transcribedText, partialText, startListening, stopListening, error: voiceError } = useVoiceInput();
+  const { loadTransactions } = useTransactions();
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -29,9 +30,25 @@ export default function ChatScreen() {
 
     try {
       const aiResponse = await chatWithGemini(message);
-      await extractAndSaveTransactions(aiResponse);
-      await addAssistantMessage(aiResponse);
+      const { displayText, transactions } = await extractAndSaveTransactions(aiResponse);
+      
+      // Log saved transactions
+      if (transactions.length > 0) {
+        console.log(`[ChatScreen] Saved ${transactions.length} transaction(s) to database`);
+        transactions.forEach(tx => {
+          console.log(`  - ${tx.type}: PKR ${tx.amount} (${tx.category}) on ${tx.date}`);
+        });
+        
+        // REFRESH dashboard/ledger/history by reloading transactions
+        console.log('[ChatScreen] Refreshing transaction data...');
+        await loadTransactions();
+        console.log('[ChatScreen] Transaction data refreshed!');
+      }
+      
+      // Show only the conversational text (without data block)
+      await addAssistantMessage(displayText || aiResponse);
     } catch (err) {
+      console.error('[ChatScreen] Error:', err);
       await addAssistantMessage("AI Error: " + err.message);
     } finally {
       setIsTyping(false);
@@ -65,6 +82,19 @@ export default function ChatScreen() {
         contentContainerStyle={{ padding: 20 }}
       />
       {isTyping && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginBottom: 10 }} />}
+
+      {voiceError && (
+        <View style={{ backgroundColor: '#FFE8E8', padding: 12, marginHorizontal: 10, marginBottom: 10, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: COLORS.danger }}>
+          <Text style={{ color: '#D32F2F', fontSize: 13, fontWeight: '500' }}>Voice Error: {voiceError}</Text>
+          {voiceError.includes('development build') && (
+            <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+              💡 Tip: Run{'\n'}
+              <Text style={{ fontWeight: 'bold' }}>npx expo run:android</Text>
+              {'\n'}to build with voice support
+            </Text>
+          )}
+        </View>
+      )}
 
       <View style={styles.inputArea}>
         <TouchableOpacity onPress={toggleVoice} style={styles.micBtn}>

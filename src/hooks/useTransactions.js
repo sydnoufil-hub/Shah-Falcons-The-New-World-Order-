@@ -37,6 +37,7 @@ export function useTransactions() {
    * Load all transactions and calculate metrics
    */
   const loadTransactions = useCallback(async () => {
+    console.log('[useTransactions] 🔄 Loading transactions and metrics...');
     try {
       setLoading(true);
       setError(null);
@@ -54,6 +55,11 @@ export function useTransactions() {
       ]);
 
       const [allTxResult, receivablesTxResult, payablesTxResult, positionResult, chartResult, overdueResult, runwayResult, alertsResult] = results;
+
+      // Log any failures
+      if (allTxResult.status === 'rejected') console.warn('[useTransactions] ⚠️ Failed to load transactions:', allTxResult.reason);
+      if (positionResult.status === 'rejected') console.warn('[useTransactions] ⚠️ Failed to calculate position:', positionResult.reason);
+      if (chartResult.status === 'rejected') console.warn('[useTransactions] ⚠️ Failed to format chart data:', chartResult.reason);
 
       // Extract values with fallbacks
       const allTx = allTxResult.status === 'fulfilled' ? allTxResult.value : [];
@@ -74,9 +80,11 @@ export function useTransactions() {
       setRunway(runwayData);
       setAlerts(alertsList);
 
+      console.log(`[useTransactions] ✅ Loaded ${allTx.length} transactions, Cash Position: PKR ${position?.cashPosition || 0}`);
+
       return { allTx, receivablesTx, payablesTx, position };
     } catch (err) {
-      console.error('Error loading transactions:', err);
+      console.error('[useTransactions] ❌ Error loading transactions:', err);
       setError(err.message);
       return null;
     } finally {

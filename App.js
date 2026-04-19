@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/Navigator/AppNavigator';
 import { initializeDatabase } from './src/database/db';
 import { AppContextProvider } from './src/context/AppContext';
+import { getBusinessProfile, initializeBusinessProfile } from './src/database/repositories/businessProfileRepository';
 
 export default function App() {
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -16,6 +17,25 @@ export default function App() {
         console.log('[App] Starting database initialization...');
         await initializeDatabase();
         console.log('[App] Database initialization complete');
+        
+        // Initialize business profile if it doesn't exist
+        try {
+          const existingProfile = await getBusinessProfile();
+          if (!existingProfile) {
+            console.log('[App] Creating default business profile...');
+            await initializeBusinessProfile({
+              businessName: 'My Business',
+              ownerName: '',
+              openingBalance: 0,
+              currency: 'PKR',
+              setupComplete: false
+            });
+            console.log('[App] Default business profile created');
+          }
+        } catch (profileError) {
+          console.warn('[App] Error initializing business profile:', profileError);
+        }
+        
         setDbInitialized(true);
       } catch (error) {
         console.error('[App] Failed to initialize database:', error);

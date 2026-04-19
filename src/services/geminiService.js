@@ -1,7 +1,7 @@
 import { getChatHistoryForOllama } from '../database/repositories/chatHistoryRepository';
 import { CASHFLOW_SYSTEM_PROMPT } from './systemPrompt';
 
-const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyC2YNLk2diYvkckBRFUoxZPZI4aCfiwhUQ';
+const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAI-XEnJ09Szh-vbjbqUjwhwpDwoX2tx4M';
 const DEFAULT_TIMEOUT = 30000;
 const GEMINI_MODEL = 'gemini-2.5-flash'; // Latest fast model
 
@@ -35,24 +35,44 @@ export async function chatWithGemini(userMessage, options = {}) {
     let conversationHistory = [];
     if (includeHistory) {
       conversationHistory = await getChatHistoryForOllama(10);
+      console.log(`[Gemini] Loaded ${conversationHistory.length} messages from history`);
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`;
     
-    console.log('[Gemini] Sending request to Gemini API');
+    // Build contents array with full conversation history
+    const contents = [];
+    
+    // Add system prompt with first user message
+    if (conversationHistory.length === 0) {
+      // No history - include system prompt with current message
+      contents.push({
+        role: 'user',
+        parts: [{ text: systemPrompt + '\n\n' + userMessage }]
+      });
+    } else {
+      // Add previous messages to contents
+      conversationHistory.forEach(msg => {
+        contents.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        });
+      });
+      
+      // Add current user message (with system prompt context)
+      contents.push({
+        role: 'user',
+        parts: [{ text: systemPrompt + '\n\n' + userMessage }]
+      });
+    }
+    
+    console.log('[Gemini] Sending request to Gemini API with history');
 
     const response = await withTimeout(
       fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: systemPrompt + '\n\n' + userMessage }]
-            }
-          ]
-        })
+        body: JSON.stringify({ contents })
       }),
       timeout
     );
@@ -68,7 +88,9 @@ export async function chatWithGemini(userMessage, options = {}) {
     
     // Extract text from Gemini response
     if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-      return data.candidates[0].content.parts[0].text;
+      const responseText = data.candidates[0].content.parts[0].text;
+      console.log('[Gemini] Response text:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
+      return responseText;
     }
     
     throw new Error('Unexpected Gemini response format');

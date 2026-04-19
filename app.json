@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "cico-2",
+    "name": "CICO",
     "slug": "cico-2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,17 +15,39 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "CashFlow AI needs microphone access to recognize your voice for transactions",
+        "NSSpeechRecognitionUsageDescription": "CashFlow AI needs speech recognition to understand voice commands"
+      }
     },
     "android": {
+      "package": "com.anonymous.cico2",
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "package": "com.anonymous.cico2"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fc523994-51fd-4446-b385-1cd74169d1dc"
+      }
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice input"
+        }
+      ]
+    ]
   }
 }
